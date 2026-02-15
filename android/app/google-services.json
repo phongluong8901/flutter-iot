@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "256975320455",
+    "firebase_url": "https://carapp2026-57b5c-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "carapp2026-57b5c",
+    "storage_bucket": "carapp2026-57b5c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:256975320455:android:a675469ff02395da7c0f22",
+        "android_client_info": {
+          "package_name": "com.example.car_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_rlZ6li4wy5UiXkOICTscwnFXqaKHumc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:256975320455:android:5d4b8264694a0dfd7c0f22",
+        "android_client_info": {
+          "package_name": "com.example.my_proj_2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_rlZ6li4wy5UiXkOICTscwnFXqaKHumc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
