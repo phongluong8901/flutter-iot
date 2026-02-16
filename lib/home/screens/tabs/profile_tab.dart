@@ -2,12 +2,56 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:my_production_app/auth/auth_service.dart';
 import 'package:my_production_app/home/providers/iot_provider.dart';
-import 'package:image_picker/image_picker.dart'; // Line-by-line: Thư viện chọn ảnh
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Line-by-line: Thêm để lưu IP vào bộ nhớ máy
 
-class ProfileTab extends StatelessWidget {
+class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
 
-  // Line-by-line: Hàm chọn ảnh từ thư viện và gửi lên server
+  @override
+  State<ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<ProfileTab> {
+  // Line-by-line: Controller để quản lý text trong ô nhập IP
+  final TextEditingController _ipController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedIp(); // Line-by-line: Tự động load IP đã lưu khi mở tab
+  }
+
+  @override
+  void dispose() {
+    _ipController.dispose();
+    super.dispose();
+  }
+
+  // Line-by-line: Hàm đọc IP từ SharedPreferences
+  Future<void> _loadSavedIp() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _ipController.text = prefs.getString('server_ip') ?? "";
+    });
+  }
+
+  // Line-by-line: Hàm lưu IP vào SharedPreferences
+  Future<void> _saveIp(String ip) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('server_ip', ip);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              "Đã lưu IP: $ip. Vui lòng khởi động lại ứng dụng để áp dụng."),
+          backgroundColor: const Color(0xFF00D2FF),
+        ),
+      );
+    }
+  }
+
+  // Line-by-line: Hàm chọn ảnh (Giữ nguyên logic của cậu)
   Future<void> _pickAndUploadImage(BuildContext context) async {
     final picker = ImagePicker();
     final XFile? pickedFile = await picker.pickImage(
@@ -16,12 +60,11 @@ class ProfileTab extends StatelessWidget {
     );
 
     if (pickedFile != null && context.mounted) {
-      // Line-by-line: Gửi trực tiếp XFile, không dùng File(pickedFile.path) nữa để tránh dính dart:io
       await context.read<IotProvider>().uploadAvatar(pickedFile);
     }
   }
 
-  // Line-by-line: Hàm hiển thị hộp thoại chỉnh sửa (Giữ nguyên logic cũ)
+  // Line-by-line: Hàm hiển thị hộp thoại chỉnh sửa (Giữ nguyên logic của cậu)
   void _showEditDialog(BuildContext context, String fieldKey, String label,
       String currentValue) {
     TextEditingController controller =
@@ -89,7 +132,7 @@ class ProfileTab extends StatelessWidget {
     );
   }
 
-  // Line-by-line: Widget tạo một dòng thông tin (Giữ nguyên logic cũ)
+  // Line-by-line: Widget tạo một dòng thông tin (Giữ nguyên logic của cậu)
   Widget _buildInfoItem(BuildContext context, IconData icon, String fieldKey,
       String label, String value) {
     return InkWell(
@@ -139,12 +182,11 @@ class ProfileTab extends StatelessWidget {
             children: [
               const SizedBox(height: 30),
 
-              // --- PHẦN AVATAR ---
+              // --- PHẦN AVATAR (Giữ nguyên) ---
               Center(
                 child: Column(
                   children: [
                     GestureDetector(
-                      // Line-by-line: Khi nhấn vào vùng Avatar sẽ kích hoạt chọn ảnh
                       onTap: () => _pickAndUploadImage(context),
                       child: Stack(
                         children: [
@@ -160,21 +202,18 @@ class ProfileTab extends StatelessWidget {
                             child: CircleAvatar(
                               radius: 45,
                               backgroundColor: Colors.white10,
-                              // Line-by-line: Ưu tiên hiển thị avatarUrl từ backend
                               backgroundImage: user['avatarUrl'] != null
                                   ? NetworkImage(user['avatarUrl'])
                                   : null,
                               child: (iot.isUploading)
                                   ? const CircularProgressIndicator(
-                                      color: Color(
-                                          0xFF00D2FF)) // Hiện loading khi đang upload
+                                      color: Color(0xFF00D2FF))
                                   : (user['avatarUrl'] == null
                                       ? const Icon(Icons.person,
                                           color: Color(0xFF00D2FF), size: 40)
                                       : null),
                             ),
                           ),
-                          // Line-by-line: Nút Camera nhỏ ở góc ảnh
                           const Positioned(
                             bottom: 0,
                             right: 0,
@@ -196,32 +235,57 @@ class ProfileTab extends StatelessWidget {
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00D2FF).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: const Color(0xFF00D2FF).withOpacity(0.3)),
-                      ),
-                      child: Text(
-                          user['role']?.toString().toUpperCase() ??
-                              "THÀNH VIÊN",
-                          style: const TextStyle(
-                              color: Color(0xFF00D2FF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1)),
-                    ),
                   ],
                 ),
               ),
 
               const SizedBox(height: 40),
 
-              // --- KHỐI THÔNG TIN CÁ NHÂN ---
+              // --- KHỐI CẤU HÌNH SERVER (MỚI THÊM) ---
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(" CẤU HÌNH KẾT NỐI",
+                    style: TextStyle(
+                        color: Colors.white38,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                  child: TextField(
+                    controller: _ipController,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      icon: const Icon(Icons.lan_outlined,
+                          color: Color(0xFF00D2FF), size: 22),
+                      labelText: "IP Server (IPv4)",
+                      labelStyle:
+                          const TextStyle(color: Colors.white38, fontSize: 12),
+                      hintText: "VD: 192.168.1.15",
+                      hintStyle: const TextStyle(color: Colors.white12),
+                      border: InputBorder.none,
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.save_as_rounded,
+                            color: Color(0xFF00D2FF)),
+                        onPressed: () => _saveIp(_ipController
+                            .text), // Line-by-line: Lưu IP khi nhấn icon
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // --- KHỐI THÔNG TIN CÁ NHÂN (Giữ nguyên) ---
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(" THÔNG TIN CÁ NHÂN",
@@ -275,7 +339,7 @@ class ProfileTab extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // --- KHỐI HỆ THỐNG ---
+              // --- KHỐI HỆ THỐNG (Giữ nguyên) ---
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(" CÀI ĐẶT HỆ THỐNG",
@@ -314,7 +378,7 @@ class ProfileTab extends StatelessWidget {
 
               const SizedBox(height: 40),
 
-              // --- NÚT ĐĂNG XUẤT ---
+              // --- NÚT ĐĂNG XUẤT (Giữ nguyên) ---
               SizedBox(
                 width: double.infinity,
                 height: 55,

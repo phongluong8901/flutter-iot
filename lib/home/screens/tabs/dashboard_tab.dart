@@ -15,7 +15,7 @@ class DashboardTab extends StatefulWidget {
 
 class _DashboardTabState extends State<DashboardTab>
     with TickerProviderStateMixin {
-  // Line-by-line: Controller cho hiệu ứng đốm màu chạy nền (đã tối ưu để không đè Header)
+  // Line-by-line: Controller cho hiệu ứng đốm màu chạy nền
   late AnimationController _bgController;
 
   @override
@@ -39,7 +39,7 @@ class _DashboardTabState extends State<DashboardTab>
 
     return Stack(
       children: [
-        // 1. TRANG TRÍ NỀN: Chỉ chạy ở phía sau, không có lớp làm mờ toàn màn hình
+        // 1. TRANG TRÍ NỀN
         _buildAnimatedBackground(),
 
         // 2. NỘI DUNG CHÍNH
@@ -48,7 +48,6 @@ class _DashboardTabState extends State<DashboardTab>
             Expanded(
               child: ListView(
                 physics: const BouncingScrollPhysics(),
-                // Line-by-line: Để top 120 để chừa chỗ "thở" cho Header của bạn
                 padding: const EdgeInsets.fromLTRB(25, 10, 25, 120),
                 children: [
                   _buildTopGreeting(iot.isOnline),
@@ -58,10 +57,11 @@ class _DashboardTabState extends State<DashboardTab>
                   _buildSectionHeader("GIÁM SÁT MÔI TRƯỜNG"),
                   const SizedBox(height: 5),
                   _buildSensorGrid(context, iot),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 25), // Tăng khoảng cách nhẹ
                   _buildSectionHeader("ĐIỀU KHIỂN HỆ THỐNG"),
-                  const SizedBox(height: 5),
-                  _buildDeviceGrid(context, iot),
+                  const SizedBox(height: 15),
+                  _buildDeviceGrid(
+                      context, iot), // Hàm đã được sửa thành dạng dòng
                   const SizedBox(height: 5),
                   _buildRgbControl(context, iot),
                 ],
@@ -73,7 +73,91 @@ class _DashboardTabState extends State<DashboardTab>
     );
   }
 
-  // --- HÀM TRANG TRÍ CARD CẢM BIẾN (GLASSMORPHISM) ---
+  // --- HÀM TRANG TRÍ CARD THIẾT BỊ (ĐÃ SỬA THÀNH DẠNG TỪNG DÒNG) ---
+  Widget _buildDeviceGrid(BuildContext context, IotProvider iot) {
+    // Line-by-line: Sử dụng ListView.builder thay vì GridView để hiển thị theo hàng dọc
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: iot.devicesControl.length,
+      itemBuilder: (context, index) {
+        String key = iot.devicesControl.keys.elementAt(index);
+        var data = iot.devicesControl[key];
+        bool isOn = data['is_on'] ?? false;
+        Color accent = const Color(0xFF00D2FF);
+
+        return Padding(
+          // Line-by-line: Khoảng cách giữa các dòng thiết bị là 12 đơn vị
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GlassmorphicContainer(
+            width: double.infinity,
+            height: 75, // Line-by-line: Chiều cao vừa đủ để không bị vỡ layout
+            borderRadius: 20,
+            blur: 15,
+            alignment: Alignment.center,
+            border: isOn ? 1.5 : 0.5,
+            linearGradient: LinearGradient(
+              colors: [
+                isOn
+                    ? accent.withOpacity(0.15)
+                    : Colors.white.withOpacity(0.05),
+                Colors.white.withOpacity(0.01),
+              ],
+            ),
+            borderGradient: LinearGradient(
+              colors: [isOn ? accent : Colors.white10, Colors.transparent],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  // Line-by-line: Biểu tượng thiết bị
+                  Icon(
+                    key.contains('fan')
+                        ? Icons.cyclone
+                        : Icons.lightbulb_rounded,
+                    color: isOn ? accent : Colors.white24,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 15),
+                  // Line-by-line: Tên thiết bị (Chiếm hết khoảng trống ở giữa)
+                  Expanded(
+                    child: Text(
+                      (data['name'] ?? key).toString().toUpperCase(),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5),
+                    ),
+                  ),
+                  // Line-by-line: Nút gạt Switch điều khiển
+                  Transform.scale(
+                    scale: 0.85,
+                    child: Switch(
+                      value: isOn,
+                      activeColor: accent,
+                      onChanged: (v) async {
+                        bool confirmed = await ConfirmDevices.show(
+                          context,
+                          title: v ? "Bật thiết bị" : "Tắt thiết bị",
+                          message: "Xác nhận thực hiện?",
+                          isTurningOn: v,
+                        );
+                        if (confirmed) iot.toggleDevicePower(key, v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- HÀM TRANG TRÍ CARD CẢM BIẾN (GIỮ NGUYÊN) ---
   Widget _sensorCard(String title, String val, IconData icon, Color color,
       double percent, String status) {
     bool isAlert = (color.value == Colors.redAccent.value);
@@ -98,7 +182,6 @@ class _DashboardTabState extends State<DashboardTab>
       ),
       child: Stack(
         children: [
-          // Icon mờ lớn nằm góc dưới làm điểm nhấn nghệ thuật
           Positioned(
             bottom: -10,
             right: -10,
@@ -109,7 +192,6 @@ class _DashboardTabState extends State<DashboardTab>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header của card: Icon nhỏ và Status text
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -140,7 +222,6 @@ class _DashboardTabState extends State<DashboardTab>
                         fontSize: 22,
                         fontWeight: FontWeight.w900)),
                 const SizedBox(height: 10),
-                // Thanh progress bar tinh tế
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
@@ -158,84 +239,7 @@ class _DashboardTabState extends State<DashboardTab>
     );
   }
 
-  // --- HÀM TRANG TRÍ CARD THIẾT BỊ ---
-  Widget _buildDeviceGrid(BuildContext context, IotProvider iot) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: iot.devicesControl.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 15,
-        crossAxisSpacing: 15,
-        childAspectRatio: 1.8,
-      ),
-      itemBuilder: (context, index) {
-        String key = iot.devicesControl.keys.elementAt(index);
-        var data = iot.devicesControl[key];
-        bool isOn = data['is_on'] ?? false;
-        Color accent = const Color(0xFF00D2FF);
-
-        return GlassmorphicContainer(
-          width: double.infinity,
-          height: double.infinity,
-          borderRadius: 20,
-          blur: 10,
-          alignment: Alignment.center,
-          border: isOn ? 1.5 : 0.5,
-          linearGradient: LinearGradient(
-            colors: [
-              isOn ? accent.withOpacity(0.15) : Colors.white.withOpacity(0.05),
-              Colors.white.withOpacity(0.01),
-            ],
-          ),
-          borderGradient: LinearGradient(
-            colors: [isOn ? accent : Colors.white10, Colors.transparent],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Icon(
-                  key.contains('fan') ? Icons.cyclone : Icons.lightbulb_rounded,
-                  color: isOn ? accent : Colors.white24,
-                  size: 24,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    data['name'] ?? key,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Transform.scale(
-                  scale: 0.75,
-                  child: Switch(
-                    value: isOn,
-                    activeColor: accent,
-                    onChanged: (v) async {
-                      bool confirmed = await ConfirmDevices.show(
-                        context,
-                        title: v ? "Bật thiết bị" : "Tắt thiết bị",
-                        message: "Xác nhận thực hiện?",
-                        isTurningOn: v,
-                      );
-                      if (confirmed) iot.toggleDevicePower(key, v);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // --- CÁC THÀNH PHẦN PHỤ TRỢ ---
+  // --- CÁC THÀNH PHẦN PHỤ TRỢ (GIỮ NGUYÊN) ---
   Widget _buildAnimatedBackground() {
     return AnimatedBuilder(
       animation: _bgController,

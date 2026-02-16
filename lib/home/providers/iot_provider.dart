@@ -15,25 +15,35 @@ import 'package:dio/dio.dart'; // Line-by-line: Thư viện HTTP mạnh mẽ đ�
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class IotProvider extends ChangeNotifier {
-  // --- CẤU HÌNH URL ---
-  String get _baseUrl {
-    // Line-by-line: Đọc giá trị từ file .env. Nếu không thấy, sẽ dùng giá trị mặc định sau dấu '??'
+  // --- CẤU HÌNH URL ĐỘNG ---
+
+  // Line-by-line: Hàm lấy Base URL (có đuôi /iot) từ SharedPreferences hoặc .env
+  Future<String> get _baseUrl async {
+    final prefs = await SharedPreferences.getInstance();
+    String? savedIp = prefs.getString('server_ip');
+
+    // Line-by-line: Ưu tiên sử dụng IP do người dùng nhập thủ công nếu có
+    if (savedIp != null && savedIp.isNotEmpty) {
+      return "http://$savedIp:3000/iot";
+    }
+
+    // Line-by-line: Nếu không có IP thủ công, dùng giá trị mặc định từ file .env
     if (kIsWeb) {
-      // Line-by-line: Lấy URL cho bản Web từ biến API_URL_WEB
       return dotenv.env['API_URL_WEB'] ?? "http://localhost:3000/iot";
     } else if (defaultTargetPlatform == TargetPlatform.android) {
-      // Line-by-line: Lấy URL cho Android từ biến API_URL_ANDROID
       return dotenv.env['API_URL_ANDROID'] ?? "http://192.168.1.5:3000/iot";
     } else {
-      // Line-by-line: Lấy URL cho iOS hoặc các nền tảng khác từ biến API_URL_IOS
       return dotenv.env['API_URL_IOS'] ?? "http://192.168.1.5:3000/iot";
     }
   }
 
-  String get _rootUrl => _baseUrl.replaceAll('/iot', '');
-  String get _socketUrl => _rootUrl;
-  late IO.Socket socket;
+  // Line-by-line: Hàm lấy Root URL (bỏ đuôi /iot) để dùng cho các API user/socket
+  Future<String> get _rootUrl async {
+    final base = await _baseUrl;
+    return base.replaceAll('/iot', '');
+  }
 
+  late IO.Socket socket;
   final Dio _dio = Dio();
 
   // --- BIẾN TRẠNG THÁI ---
@@ -98,7 +108,8 @@ class IotProvider extends ChangeNotifier {
   Future<void> fetchMe() async {
     try {
       final headers = await _getHeaders();
-      final url = '${_rootUrl.trim()}/users/me';
+      final root = await _rootUrl; // Line-by-line: Đợi lấy root URL động
+      final url = '${root.trim()}/users/me';
       final response = await http.get(Uri.parse(url), headers: headers);
 
       if (response.statusCode == 200) {
@@ -112,7 +123,7 @@ class IotProvider extends ChangeNotifier {
     }
   }
 
-  // --- UPLOAD ẢNH ĐẠI DIỆN (ĐÃ SỬA LỖI WEB) ---
+  // --- UPLOAD ẢNH ĐẠI DIỆN ---
   bool _isUploading = false;
   bool get isUploading => _isUploading;
 
@@ -122,19 +133,18 @@ class IotProvider extends ChangeNotifier {
 
     try {
       String? token = await AuthCheck.getIdToken();
-      final String uploadUrl = "${_rootUrl.trim()}/users/upload-avatar";
+      final root = await _rootUrl; // Line-by-line: Đợi lấy root URL động
+      final String uploadUrl = "${root.trim()}/users/upload-avatar";
 
       MultipartFile multipartFile;
 
       if (kIsWeb) {
-        // Line-by-line: Trên Web, dùng XFile.readAsBytes() cực kỳ an toàn
         final bytes = await imageFile.readAsBytes();
         multipartFile = MultipartFile.fromBytes(
           bytes,
-          filename: imageFile.name, // XFile có sẵn thuộc tính name
+          filename: imageFile.name,
         );
       } else {
-        // Line-by-line: Trên Mobile, lấy path từ XFile để tạo MultipartFile
         multipartFile = await MultipartFile.fromFile(
           imageFile.path,
           filename: imageFile.name,
@@ -171,7 +181,7 @@ class IotProvider extends ChangeNotifier {
   Future<bool> updateUserProfile(Map<String, dynamic> updateData) async {
     try {
       final headers = await _getHeaders();
-      String root = _baseUrl.replaceAll('/iot', '');
+      String root = await _rootUrl; // Line-by-line: Đợi lấy root URL động
       if (root.endsWith('/')) {
         root = root.substring(0, root.length - 1);
       }
@@ -227,9 +237,11 @@ class IotProvider extends ChangeNotifier {
   }
 
   // --- SOCKET ---
-  void _initSocket() {
+  void _initSocket() async {
+    // Line-by-line: Socket cần lấy root URL trước khi khởi tạo
+    final socketUrl = await _rootUrl;
     socket = IO.io(
-      _socketUrl,
+      socketUrl,
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .enableAutoConnect()
@@ -251,8 +263,9 @@ class IotProvider extends ChangeNotifier {
   Future<void> fetchLogs() async {
     try {
       final headers = await _getHeaders();
+      final base = await _baseUrl; // Line-by-line: Đợi lấy base URL động
       final response = await http.get(
-        Uri.parse('$_baseUrl/logs'),
+        Uri.parse('$base/logs'),
         headers: headers,
       );
       if (response.statusCode == 200) {
@@ -267,7 +280,8 @@ class IotProvider extends ChangeNotifier {
   Future<void> deleteAllNotifications() async {
     try {
       final headers = await _getHeaders();
-      await http.delete(Uri.parse('$_baseUrl/logs'), headers: headers);
+      final base = await _baseUrl;
+      await http.delete(Uri.parse('$base/logs'), headers: headers);
       _logs.clear();
       notifyListeners();
     } catch (e) {
@@ -278,8 +292,9 @@ class IotProvider extends ChangeNotifier {
   Future<void> markAsRead(String id) async {
     try {
       final headers = await _getHeaders();
+      final base = await _baseUrl;
       final response = await http.patch(
-        Uri.parse('$_baseUrl/logs/$id'),
+        Uri.parse('$base/logs/$id'),
         headers: headers,
         body: jsonEncode({"is_read": true}),
       );
@@ -292,7 +307,8 @@ class IotProvider extends ChangeNotifier {
   Future<void> deleteSingleLog(String id) async {
     try {
       final headers = await _getHeaders();
-      await http.delete(Uri.parse('$_baseUrl/logs/$id'), headers: headers);
+      final base = await _baseUrl;
+      await http.delete(Uri.parse('$base/logs/$id'), headers: headers);
       await fetchLogs();
     } catch (e) {
       debugPrint("Delete Single Error: $e");
@@ -338,8 +354,9 @@ class IotProvider extends ChangeNotifier {
   Future<void> fetchIotStatus() async {
     try {
       final headers = await _getHeaders();
+      final base = await _baseUrl; // Line-by-line: Lấy URL động cho status
       final response = await http
-          .get(Uri.parse('$_baseUrl/status'), headers: headers)
+          .get(Uri.parse('$base/status'), headers: headers)
           .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
@@ -389,9 +406,10 @@ class IotProvider extends ChangeNotifier {
   Future<void> toggleDevicePower(String deviceKey, bool status) async {
     try {
       final headers = await _getHeaders();
+      final base = await _baseUrl; // Line-by-line: Lấy URL động cho control
       final body = {"type": "control", "name": deviceKey, "is_on": status};
       await http.post(
-        Uri.parse('$_baseUrl/control'),
+        Uri.parse('$base/control'),
         headers: headers,
         body: jsonEncode(body),
       );
@@ -404,6 +422,7 @@ class IotProvider extends ChangeNotifier {
   Future<void> updateRGBColor(Color color) async {
     try {
       final headers = await _getHeaders();
+      final base = await _baseUrl;
       final body = {
         "type": "rgb",
         "r": color.red,
@@ -412,7 +431,7 @@ class IotProvider extends ChangeNotifier {
         "is_on": true,
       };
       await http.post(
-        Uri.parse('$_baseUrl/control'),
+        Uri.parse('$base/control'),
         headers: headers,
         body: jsonEncode(body),
       );
@@ -430,8 +449,9 @@ class IotProvider extends ChangeNotifier {
   ) async {
     try {
       final headers = await _getHeaders();
+      final base = await _baseUrl;
       final response = await http.patch(
-        Uri.parse('$_baseUrl/devices/$deviceId'),
+        Uri.parse('$base/devices/$deviceId'),
         headers: headers,
         body: jsonEncode(updateData),
       );
@@ -448,8 +468,9 @@ class IotProvider extends ChangeNotifier {
   Future<void> resetDeviceHealth(String deviceId) async {
     try {
       final headers = await _getHeaders();
+      final base = await _baseUrl;
       final response = await http.post(
-        Uri.parse('$_baseUrl/devices/$deviceId/reset-health'),
+        Uri.parse('$base/devices/$deviceId/reset-health'),
         headers: headers,
       );
       if (response.statusCode == 200) await fetchIotStatus();

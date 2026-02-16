@@ -44,3 +44,9 @@ git remote set-url origin https://github.com/phongluong8901/flutter-iot.git
 
 # Line-by-line: Đẩy code lên GitHub
 git push -u origin main
+
+
+
+git remote add origin https://github.com/phongluong8901/flutter-iot.git
+git branch -M main
+git push -u origin main
