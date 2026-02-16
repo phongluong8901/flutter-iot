@@ -52,14 +52,20 @@
         <true/>
     </dict>
 
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>App cần truy cập mạng nội bộ để kết nối với server IoT và điều khiển thiết bị.</string>
+
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_http._tcp</string>
+    </array>
+
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Ứng dụng cần truy cập thư viện để bạn chọn ảnh đại diện.</string>
-
     <key>NSCameraUsageDescription</key>
     <string>Ứng dụng cần sử dụng máy ảnh để bạn chụp ảnh đại diện mới.</string>
-
     <key>NSMicrophoneUsageDescription</key>
     <string>Ứng dụng cần sử dụng micro khi bạn quay video profile.</string>
-    
-    </dict>
+
+</dict>
 </plist>
