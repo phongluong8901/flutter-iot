@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // Line-by-line: Import dotenv để đọc biến môi trường
+import 'package:flutter/foundation.dart'; // Line-by-line: Thêm thư viện này để dùng hằng số kIsWeb
 import 'firebase_options.dart';
 import 'home/screens/widgets/head_notifications.dart';
 import 'auth/auth_service.dart';
@@ -11,31 +10,24 @@ import 'home/screens/home_screen.dart';
 import 'home/providers/iot_provider.dart';
 
 void main() async {
-  // Line-by-line: Đảm bảo Flutter được khởi tạo trước khi gọi các hàm async
+  // Line-by-line: Đảm bảo các thành phần hệ thống của Flutter được khởi tạo
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Line-by-line: Nạp file .env ngay từ đầu. Cậu cần tạo file này ở root project.
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint(
-        "⚠️ Cảnh báo: Không tìm thấy file .env, app sẽ dùng giá trị mặc định.");
-  }
-
-  // Line-by-line: Khởi tạo Firebase dựa trên nền tảng
+  // Line-by-line: Khởi tạo Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Line-by-line: Khởi tạo Notification mà không dùng await để tránh treo app trên Web
+  // Line-by-line: CÁCH SỬA QUAN TRỌNG NHẤT
+  // Không dùng 'await' cho NotificationService để tránh việc lỗi trên Web làm treo cả App
+  // Đồng thời bên trong NotificationService.initialize() bạn phải dùng kIsWeb như mình đã hướng dẫn trước đó.
   NotificationService.initialize().catchError((e) {
-    debugPrint("⚠️ Lỗi khởi tạo Notification: $e");
+    print("⚠️ Lỗi khởi tạo Notification (Có thể do chạy trên Web): $e");
   });
 
   runApp(
     MultiProvider(
       providers: [
-        // Line-by-line: Đăng ký IotProvider để dùng trong toàn bộ app
         ChangeNotifierProvider(create: (_) => IotProvider()),
       ],
       child: const MyApp(),
@@ -56,7 +48,7 @@ class MyApp extends StatelessWidget {
         primaryColor: const Color(0xFF00D2FF),
         scaffoldBackgroundColor: const Color(0xFF0D1117),
       ),
-      // Line-by-line: StreamBuilder lắng nghe trạng thái đăng nhập từ Firebase
+      // Line-by-line: Sử dụng StreamBuilder để quản lý trạng thái đăng nhập
       home: StreamBuilder(
         stream: AuthService().userStream,
         builder: (context, snapshot) {
@@ -66,10 +58,8 @@ class MyApp extends StatelessWidget {
             );
           }
 
-          // Line-by-line: Nếu snapshot có dữ liệu (user != null) thì vào Home
+          // Line-by-line: Nếu đã login thì vào Home, chưa thì vào Login
           if (snapshot.hasData) return const HomeScreen();
-
-          // Line-by-line: Ngược lại thì quay về màn Login
           return const LoginScreen();
         },
       ),

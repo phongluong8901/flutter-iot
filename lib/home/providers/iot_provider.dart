@@ -29,11 +29,11 @@ class IotProvider extends ChangeNotifier {
 
     // Line-by-line: Nếu không có IP thủ công, dùng giá trị mặc định từ file .env
     if (kIsWeb) {
-      return dotenv.env['API_URL_WEB'] ?? "http://localhost:3000/iot";
+      return "http://localhost:3000/iot";
     } else if (defaultTargetPlatform == TargetPlatform.android) {
-      return dotenv.env['API_URL_ANDROID'] ?? "http://192.168.1.5:3000/iot";
+      return "http://192.168.1.5:3000/iot";
     } else {
-      return dotenv.env['API_URL_IOS'] ?? "http://192.168.1.5:3000/iot";
+      return "http://192.168.1.5:3000/iot";
     }
   }
 
